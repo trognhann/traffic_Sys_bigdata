@@ -36,10 +36,10 @@ resource "aws_security_group" "superset" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip]
+    # cidr_blocks = [var.my_ip]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Superset Web UI - Cho phép truy cập public (hoặc giới hạn IP nếu muốn)
   ingress {
     from_port   = 8088
     to_port     = 8088
@@ -47,7 +47,6 @@ resource "aws_security_group" "superset" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Outbound - Cho phép ra internet để cài Docker/Pip
   egress {
     from_port   = 0
     to_port     = 0
