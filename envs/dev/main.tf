@@ -1,3 +1,13 @@
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+}
+
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
   version = "5.0.0"
@@ -104,11 +114,44 @@ resource "aws_security_group" "emr" {
   }
 }
 
+resource "aws_security_group" "emr_service_access" {
+  name   = "${var.project_name}-emr-service-access-sg"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    from_port       = 9443
+    to_port         = 9443
+    protocol        = "tcp"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+  ingress {
+    from_port       = 9443
+    to_port         = 9443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.emr.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 # S3 Buckets
 resource "aws_s3_bucket" "data" { bucket = "${var.project_name}-data-${random_id.suffix.hex}" }
 resource "aws_s3_bucket" "logs" { bucket = "${var.project_name}-logs-${random_id.suffix.hex}" }
 resource "random_id" "suffix" { byte_length = 4 }
 
+resource "aws_db_subnet_group" "rds_subnet_group" {
+  name       = "${var.project_name}-db-subnet-group"
+  subnet_ids = module.vpc.private_subnets
+
+  tags = {
+    Name = "My DB Subnet Group"
+  }
+}
 # RDS MySQL
 resource "aws_db_instance" "datamart" {
   identifier           = "${var.project_name}-db"
@@ -124,7 +167,7 @@ resource "aws_db_instance" "datamart" {
   skip_final_snapshot  = true
   publicly_accessible  = false
   vpc_security_group_ids = [aws_security_group.rds.id]
-  db_subnet_group_name   = module.vpc.database_subnet_group
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
   
   # Lab optimization
   multi_az = false
@@ -132,7 +175,9 @@ resource "aws_db_instance" "datamart" {
 
 # Secrets Manager (Lưu thông tin DB để EMR/Superset lấy)
 resource "aws_secretsmanager_secret" "db_creds" {
-  name = "${var.project_name}/db-creds"
+#   name = "${var.project_name}/db-creds"
+  name = "${var.project_name}/db-creds-${random_id.suffix.hex}"
+  recovery_window_in_days = 0
 }
 resource "aws_secretsmanager_secret_version" "db_creds_val" {
   secret_id     = aws_secretsmanager_secret.db_creds.id
@@ -150,11 +195,12 @@ resource "aws_emr_cluster" "hbase_cluster" {
   name          = "${var.project_name}-hbase"
   release_label = "emr-6.10.0" # Có HBase 2.4.13, Spark 3.3.1
   applications  = ["Hadoop", "HBase", "Spark", "Hive"]
-
+  depends_on = [ module.vpc ]
   ec2_attributes {
     subnet_id                         = module.vpc.private_subnets[0]
     emr_managed_master_security_group = aws_security_group.emr.id
     emr_managed_slave_security_group  = aws_security_group.emr.id
+    service_access_security_group     = aws_security_group.emr_service_access.id
     instance_profile                  = aws_iam_instance_profile.emr_profile.arn
     key_name                          = var.key_name
   }
@@ -174,10 +220,10 @@ resource "aws_emr_cluster" "hbase_cluster" {
   service_role = aws_iam_role.emr_service_role.arn
   
   # Bootstrap action (Optional): Cài thêm thư viện Python nếu cần
-  bootstrap_action {
-    path = "s3://${aws_s3_bucket.data.id}/scripts/bootstrap.sh"
-    name = "InstallDependencies"
-  }
+#   bootstrap_action {
+#     path = "s3://${aws_s3_bucket.data.id}/scripts/bootstrap.sh"
+#     name = "InstallDependencies"
+#   }
 }
 
 
@@ -195,12 +241,14 @@ resource "aws_emr_cluster" "hbase_cluster" {
 # }
 
 resource "aws_instance" "superset" {
-  ami                    = "ami-06c4be2792f419b7b" # Amazon Linux 2023 (ap-southeast-1)
+#   ami                    = "ami-06c4be2792f419b7b" # Amazon Linux 2023 (ap-southeast-1)
+  ami                    = data.aws_ami.amazon_linux_2023.id
   instance_type          = "t3.large"
   subnet_id              = module.vpc.public_subnets[0]
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.superset.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+  associate_public_ip_address = true
 
   tags = { Name = "Superset-Server" }
 
@@ -241,5 +289,13 @@ resource "aws_instance" "superset" {
 
     # Chạy container
     /usr/local/bin/docker-compose up -d
+    echo "Waiting for Superset container..."
+    sleep 180
+
+    echo "Installing MySQL Drivers..."
+    docker exec -u root superset_container pip install pymysql cryptography pkg-config
+
+    echo "Restarting Superset..."
+    docker restart superset_container
   EOF
 }

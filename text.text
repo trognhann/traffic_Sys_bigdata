@@ -1,0 +1,3 @@
+temp-lab-db.cdq8qo66a59r.ap-northeast-1.rds.amazonaws.com
+
+mysql+pymysql://admin:MatKhauManh2026!@temp-lab-db.cdq8qo66a59r.ap-northeast-1.rds.amazonaws.com:3306/datamart

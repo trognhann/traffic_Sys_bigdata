@@ -5,7 +5,7 @@ variable "region" {
 
 variable "project_name" {
   description = "Tên dự án dùng làm tiền tố cho các resource"
-  default     = "bigdata-lab"
+  default     = "temp-lab"
 }
 
 variable "my_ip" {

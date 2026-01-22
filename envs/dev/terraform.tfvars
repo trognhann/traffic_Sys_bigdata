@@ -1,8 +1,8 @@
 
 region       = "ap-northeast-1"
-project_name = "bigdata-lab"
+project_name = "temp-lab"
 
-my_ip        = "113.185.41.97/32"
+my_ip        = "113.185.43.129/32"
 
 key_name     = "key-pair-temp"
 

@@ -212,7 +212,6 @@ __marimo__/
 .terraform.lock.hcl
 .tfstate
 .tfstate.backup
-*.tfvars
 *.tfvars.json
 crash.log
 override.tf
