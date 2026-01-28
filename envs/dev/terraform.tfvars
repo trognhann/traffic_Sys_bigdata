@@ -1,9 +1,9 @@
 
 region       = "ap-northeast-1"
-project_name = "temp-lab"
+project_name = "lab"
 
-my_ip        = "113.185.43.129/32"
+my_ip        = "0.0.0.0/0"
 
-key_name     = "key-pair-temp"
+key_name     = "bigdata-lab"
 
 db_password  = "MatKhauManh2026!"

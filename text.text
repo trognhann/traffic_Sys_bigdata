@@ -1,3 +1,38 @@
 temp-lab-db.cdq8qo66a59r.ap-northeast-1.rds.amazonaws.com
 
 mysql+pymysql://admin:MatKhauManh2026!@temp-lab-db.cdq8qo66a59r.ap-northeast-1.rds.amazonaws.com:3306/datamart
+
+
+
+
+
+# Thay <CONTAINER_ID> bằng ID bạn vừa lấy
+sudo docker exec -it 1a3f9fd71fd6 python3 -c "
+import sys
+try:
+    from sqlalchemy import create_engine
+    
+    # Thay mật khẩu và endpoint của bạn vào đây
+    # Lưu ý: Dùng mysql+pymysql
+    uri = 'mysql+pymysql://admin:MatKhauManh2026!@lab-db.claoaa0omuld.ap-northeast-1.rds.amazonaws.com:3306/datamart'
+    
+    print('Dang ket noi...')
+    engine = create_engine(uri)
+    conn = engine.connect()
+    print('✅ KET NOI THANH CONG! Superset da san sang.')
+    conn.close()
+except ImportError:
+    print('❌ LOI: Thieu thu vien pymysql. Can cai dat lai driver.')
+except Exception as e:
+    print('❌ LOI KET NOI:')
+    print(e)
+"
+
+
+sudo docker exec -it -u root 1a3f9fd71fd6 pip install pymysql cryptography
+
+sudo docker restart 1a3f9fd71fd6
+
+
+
+ssh -i bigdata-lab.pem -L 3307:lab-db.claoaa0omuld.ap-northeast-1.rds.amazonaws.com:3306 ec2-user@ec2-54-95-29-217.ap-northeast-1.compute.amazonaws.com

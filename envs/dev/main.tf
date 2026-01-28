@@ -158,7 +158,7 @@ resource "aws_db_instance" "datamart" {
   storage_type         = "gp2"
   engine               = "mysql"
   engine_version       = "8.0"
-  instance_class       = "db.t3.medium"
+  instance_class       = "db.t3.small"
   db_name              = "datamart"
   username             = "admin"
   password             = var.db_password
@@ -242,7 +242,7 @@ resource "aws_emr_cluster" "hbase_cluster" {
 resource "aws_instance" "superset" {
 #   ami                    = "ami-06c4be2792f419b7b" # Amazon Linux 2023 (ap-southeast-1)
   ami                    = data.aws_ami.amazon_linux_2023.id
-  instance_type          = "t3.large"
+  instance_type          = "t3.medium" # Superset cần RAM > 4GB để build assets nếu cần
   subnet_id              = module.vpc.public_subnets[0]
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.superset.id]
@@ -297,4 +297,15 @@ resource "aws_instance" "superset" {
     echo "Restarting Superset..."
     docker restart superset_container
   EOF
+}terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
 }
